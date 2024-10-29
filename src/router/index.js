@@ -5,6 +5,7 @@ import { useDatabaseStore } from '@/stores/database.js'
 import Home from "@/views/Home.vue";
 import Login from "@/views/Login.vue";
 import Editar from "@/views/Editar.vue";
+import Ver from "@/views/Ver.vue";
 import Register from "@/views/Register.vue";
 import Perfil from "@/views/Perfil.vue";
 import NotFound from '@/views/NotFound.vue';
@@ -46,6 +47,7 @@ const router = createRouter({
   routes: [
     { path: "/", component: Home, beforeEnter: requireAuth, name:'home' },
     { path: "/editar/:id", component: Editar, beforeEnter: requireAuth, name: 'edit' },
+    { path: "/ver/:id", component: Ver, beforeEnter: requireAuth, name: 'ver' },
     { path: "/login", component: Login, name: 'login' },
     { path: "/register", component: Register, name: 'register' },
     { path: "/perfil", component: Perfil, beforeEnter: requireAuth, name: 'perfil' },

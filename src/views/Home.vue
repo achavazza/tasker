@@ -1,76 +1,62 @@
 <template>
-    <div>
-        <h1>Inicio</h1>
-
-        <AddForm />
-        <!--
-            <form @submit.prevent="handleSubmit">
-                <input type="text" name="" placeholder="ingrese url" v-model="url">
-                <button type="submit">Agregar</button>
-            </form>
-            -->
-
-
-        <p v-if="databaseStore.loadingDoc">Loading docs ...</p>
-        
-        
-        <a-space direction="vertical" style="width:100%" v-if="!databaseStore.loadingDoc">
-            <a-card 
-            v-for="item of databaseStore.documents" 
-            :title="item.short"  
-            :key="item.id">
-                <template #extra>
-                    <a-space>
-                        <a-popconfirm
-                        title="Seguro que deseas eliminarlo?"
-                        ok-text="Si, quiero eliminarlo"
-                        cancel-text="Cancelar"
-                        @confirm="confirm(item.id)"
-                        @cancel="cancel"
-                        >
-                            <a-button 
-                            danger
-                            :loading="databaseStore.loadingDoc"
-                            :disabled="databaseStore.loadingDoc"
-                            >Eliminar</a-button>
-                        </a-popconfirm>
-                        <a-button type="default" @click="router.push(`/editar/${item.id}`)">Editar</a-button>
-                        <a-button @click="copiarPortapapeles(item.id)">Copiar</a-button>
-                    </a-space>
-                </template>
-                <p>{{ item.id }}</p>        
-                <p>{{ item.name }}</p>        
-            </a-card>    
-        </a-space>
-        
-    </div>
+    <p v-if="taskStore.loadingDoc">Loading docs ...</p>
+    <a-row>
+        <a-col :span="6">
+            <AddTask />
+        </a-col>
+    </a-row>
+    <a-row>
+        <a-col :xl="6" :md="12" :xs="24">
+            <a-space direction="vertical" style="width:100%" v-if="!taskStore.loadingDoc">
+                <a-card 
+                v-for="item of taskStore.documents" 
+                :title="item.short"  
+                :key="item.id">
+                    <template #extra><a href="#" @click="router.push(`/ver/${item.id}`)">Ver</a></template>
+                    <p>{{ item.desc }}</p>  
+                    <template #actions>
+                        <a-space>
+                            <a-popconfirm
+                            title="Seguro que deseas eliminarlo?"
+                            ok-text="Si, quiero eliminarlo"
+                            cancel-text="Cancelar"
+                            @confirm="confirm(item.id)"
+                            @cancel="cancel"
+                            >
+                                <a-button 
+                                danger
+                                :loading="taskStore.loadingDoc"
+                                :disabled="taskStore.loadingDoc"
+                                >Eliminar</a-button>
+                            </a-popconfirm>
+                            <a-button type="default" @click="router.push(`/editar/${item.id}`)">Editar</a-button>
+                            <a-button @click="copiarPortapapeles(item.id)">Copiar</a-button>
+                        </a-space>
+                    </template>      
+                </a-card>    
+            </a-space>
+        </a-col>
+        <a-col :xl="6" :md="12" :xs="24"></a-col>
+        <a-col :xl="6" :md="12" :xs="24"></a-col>
+        <a-col :xl="6" :md="12" :xs="24"></a-col>
+    </a-row>
 </template>
 
 <script setup>
-import { useUserStore } from '../stores/user'
-import { useDatabaseStore } from '../stores/database'
-//import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-
 import { message } from 'ant-design-vue';
 
+import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
+import { useTaskStore } from '../stores/tasks'
+
 const router = useRouter()
-
 const userStore = useUserStore()
-const databaseStore = useDatabaseStore()
+const taskStore = useTaskStore()
 
-databaseStore.getUrls();
+taskStore.getTasks();
 
-/*
-const url = ref()
-const handleSubmit = () => {
-    //cuando usas compAPI+setup agregas .value cuando queres leer componentes de vistas, no en las vistas
-    databaseStore.addUrl(url.value);
-}
-*/
 const confirm = async (id) => {
-    const error = await databaseStore.deleteURL(id)
-    
+    const error = await taskStore.deleteURL(id)    
     if(!error){
         message.success('Se elimino con éxito')
     }else{
@@ -80,7 +66,6 @@ const confirm = async (id) => {
 const cancel = () => {
     message.info('No se eliminó')
 }
-
 const copiarPortapapeles = async (id) => {
     console.log(id);
     if(!navigator.clipboard){
@@ -95,9 +80,5 @@ const copiarPortapapeles = async (id) => {
     }else{
         message.success('Se copió al portapapeles')
     }
-
-    
-
 }
-
 </script>
