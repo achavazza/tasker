@@ -1,13 +1,22 @@
 <template>
   <a-layout>
-    <a-layout-header v-if="!userStore.loadingSession">
-      <a-menu theme="dark" mode="horizontal" :style="{lineHeight: '64px'}" v-model:selectedKeys="selectedKeys">
+    <a-layout-sider v-model:collapsed="collapsed" :trigger="null" collapsible v-if="!userStore.loadingSession">
+      <a-menu theme="dark" :style="{lineHeight: '64px'}" v-model:selectedKeys="selectedKeys">
         <a-menu-item key="home"       v-if="userStore.userData"><router-link to="/">Home</router-link></a-menu-item>
         <a-menu-item key="perfil"     v-if="userStore.userData"><router-link to="/perfil">Perfil</router-link></a-menu-item>
         <a-menu-item key="login"      v-if="!userStore.userData"><router-link to="/login">Login</router-link></a-menu-item>
         <a-menu-item key="register"   v-if="!userStore.userData"><router-link to="/register">Register</router-link></a-menu-item>
         <a-menu-item key="logout"     @click="userStore.logoutUser" v-if="userStore.userData">Logout</a-menu-item>
       </a-menu>
+    </a-layout-sider>
+    <a-layout>
+      <a-layout-header style="background: #fff; padding: 0">
+        <menu-unfold-outlined
+          v-if="collapsed"
+          class="trigger"
+          @click="() => (collapsed = !collapsed)"
+        />
+        <menu-fold-outlined v-else class="trigger" @click="() => (collapsed = !collapsed)" />
     </a-layout-header>
     <a-layout-content style="padding:0 50px;">
       <div :style="{ background: '#fff', padding: '24px', minHeight: '280px' }"  class="full-h">
@@ -18,6 +27,7 @@
       </div>
     </a-layout-content>
   </a-layout>
+</a-layout>
 </template>
 
 

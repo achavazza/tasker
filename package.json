@@ -9,13 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueuse/core": "^11.1.0",
+    "@vueuse/integrations": "^11.1.0",
     "ant-design-vue": "^4.0.0-rc.6",
     "firebase": "^10.12.4",
     "nanoid": "^5.0.7",
     "pinia": "^2.1.7",
+    "sortablejs": "^1.15.3",
     "unplugin-vue-components": "^0.27.4",
     "vue": "^3.4.21",
-    "vue-router": "^4.3.0"
+    "vue-draggable-next": "^2.2.1",
+    "vue-draggable-plus": "^0.5.6",
+    "vue-router": "^4.3.0",
+    "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",

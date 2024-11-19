@@ -1,145 +1,128 @@
-import { db } from "@/firebaseConfig"
-import { getAuth } from "firebase/auth";
-import { collection, where, addDoc, setDoc, doc, getDoc, getDocs, query, deleteDoc, updateDoc } from "firebase/firestore/lite";
+import { db } from "@/firebaseConfig";
+import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore/lite";
 import { defineStore } from "pinia";
 
-import router from '@/router/index.js';
-import { nanoid } from "nanoid";
-
-export const useTaskStore = defineStore('task', {
+export const useTaskStore = defineStore("task", {
     state: () => ({
-        documents: [],
+        tasks: [],  // Flat array of all tasks
+        structuredTasks: [],  // Nested tasks structure
         loadingDoc: false,
+        updateTimeout: null,  // Timeout reference for debouncing
     }),
     actions: {
-        async getTasks() {
-            //si hay data en cache no pida
-            if (this.documents.length !== 0) {
-                return
-            }
+        async fetchAllTasks() {
             this.loadingDoc = true;
             try {
-                const auth = getAuth();
-                const q = query(collection(db, 'tasks'), where('user', '==', auth.currentUser.uid));
-                const querySnapshot = await getDocs(q);
-                querySnapshot.forEach(doc => {
-                    // console.log(doc.id, doc.data());
-                    this.documents.push({
-                        id: doc.id,
-                        ...doc.data()
-                    })
-                })
-                //console.log(this.documents);
+                const querySnapshot = await getDocs(collection(db, "tasks"));
+                this.tasks = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    children: []
+                }));
+                this.updateStructuredTasks();
             } catch (error) {
-                console.log(error.code);
+                console.error("Error fetching tasks:", error.message);
             } finally {
                 this.loadingDoc = false;
             }
         },
-        async addTask(desc) {
+
+        updateStructuredTasks() {
+            const taskMap = {};
+            const structured = [];
+
+            // Map tasks by id for easy reference
+            this.tasks.forEach(task => {
+                taskMap[task.id] = { ...task, children: [] };
+            });
+
+            // Build structured hierarchy
+            this.tasks.forEach(task => {
+                if (task.parentId) {
+                    taskMap[task.parentId]?.children.push(taskMap[task.id]);
+                } else {
+                    structured.push(taskMap[task.id]);
+                }
+            });
+
+            this.structuredTasks = structured;
+        },
+
+        async addTask(desc, status, timeTracked, parentId = null) {
             this.loadingDoc = true;
             try {
-                const auth = getAuth();
-                const objetoDoc = {
-                    desc: desc,
-                    short: nanoid(6),
-                    user: auth.currentUser.uid,
+                const newTask = {
+                    desc,
+                    status,
+                    timeTracked,
+                    updatedAt: new Date(),
+                    createdAt: new Date(),
+                    parentId
                 };
-                // cambio la logica a asignar un id propio usando nano
-                //console.log(objetoDoc);
-                await setDoc(doc(db, "tasks", objetoDoc.short), objetoDoc);
-                this.documents.push({
-                    ...objetoDoc,
-                    id: objetoDoc.short
-                });
-            } catch (error) {
+                const docRef = await addDoc(collection(db, "tasks"), newTask);
+                const addedTask = { id: docRef.id, ...newTask };
 
+                this.tasks.push(addedTask);
+                this.updateStructuredTasks();
+                this.debounceSave();
+            } catch (error) {
+                console.error("Error adding task:", error.message);
             } finally {
                 this.loadingDoc = false;
             }
         },
-        async getTask(id) {
-            try {
-                const docRef = doc(db, 'tasks', id);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) {
-                    return false
-                }
-                return docSnap.data().desc
 
-            } catch (error) {
-                return false
-            } finally {
-
-            }
-        },
-        async readTask(id) {
-            try {
-                const auth = getAuth();
-                const docRef = doc(db, 'tasks', id);
-                const docSnap = await getDoc(docRef);
-
-                if (!docSnap.exists()) {
-                    throw new Error("No existe el doc")
-                }
-                if (docSnap.data().user !== auth.currentUser.uid) {
-                    throw new Error("No le pertenece ese documento")
-                }
-
-                return docSnap.data()
-
-            } catch (error) {
-                console.log(error)
-            } finally {
-
-            }
-        },
-        async updateTask(id, data) {
-            try {
-                const auth    = getAuth();
-                const docRef  = doc(db, 'tasks', id);
-                const docSnap = await getDoc(docRef);
-
-                if (!docSnap.exists()) {
-                    throw new Error("No existe el doc")
-                }
-                if (docSnap.data().user !== auth.currentUser.uid) {
-                    throw new Error("No le pertenece ese documento")
-                }
-
-                 
-                await updateDoc(docRef, data)
-
-                //map devuelve el total de elementos del array, si o si, por positva o negativa, no cambia el tamaño del array
-                this.documents = this.documents.map(item => item.id === id ? ({ ...item, desc: desc }) : item)
-                router.push('/')
-
-            } catch (error) {
-                console.log(error)
-            } finally {
-
-            }
-        },
-        async deleteTask(id) {
+        async deleteTask(taskId) {
             this.loadingDoc = true;
             try {
-                const auth = getAuth();
-                const docRef = doc(db, 'tasks', id);
-
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) {
-                    throw new Error("No existe el doc")
-                }
-                if (docSnap.data().user !== auth.currentUser.uid) {
-                    throw new Error("No le pertenece ese documento")
-                }
-                await deleteDoc(docRef);
-                this.documents = this.documents.filter(item => item.id !== id);
+                await deleteDoc(doc(db, "tasks", taskId));
+                this.tasks = this.tasks.filter(task => task.id !== taskId);
+                this.updateStructuredTasks();
+                this.debounceSave();
             } catch (error) {
-                return error.message;
+                console.error("Error deleting task:", error.message);
             } finally {
                 this.loadingDoc = false;
             }
+        },
+
+        async updateTask(taskId, updatedFields) {
+            this.loadingDoc = true;
+            try {
+                const taskRef = doc(db, "tasks", taskId);
+                await updateDoc(taskRef, updatedFields);
+
+                const index = this.tasks.findIndex(task => task.id === taskId);
+                if (index !== -1) {
+                    Object.assign(this.tasks[index], updatedFields);
+                    this.updateStructuredTasks();
+                    this.debounceSave();
+                }
+            } catch (error) {
+                console.error("Error updating task:", error.message);
+            } finally {
+                this.loadingDoc = false;
+            }
+        },
+
+        async updateTasksOrder() {
+            const batch = writeBatch(db);
+            const saveTaskRecursively = (task, parentId = null) => {
+                const taskRef = doc(db, "tasks", task.id);
+                batch.update(taskRef, { parentId });
+                task.children.forEach(child => saveTaskRecursively(child, task.id));
+            };
+
+            this.structuredTasks.forEach(rootTask => saveTaskRecursively(rootTask));
+            await batch.commit();
+        },
+
+        debounceSave() {
+            if (this.updateTimeout) clearTimeout(this.updateTimeout);
+            this.updateTimeout = setTimeout(async () => {
+                await this.updateTasksOrder();
+                this.updateTimeout = null;
+            }, 1000); // Adjust debounce time as needed
         }
     }
 });
